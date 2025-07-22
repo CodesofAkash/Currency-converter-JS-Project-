@@ -161,7 +161,7 @@ const countryList = {
   };
 
 const BASE_URL =
-"https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/latest/currencies";
+"https://api.fxratesapi.com/latest";
 
 const dropdowns = document.querySelectorAll(".dropdown select");
 const btn = document.querySelector("form button");
@@ -215,10 +215,41 @@ const updateExchangeRate = async () => {
         amount.value = "1";
     }
 
-    const URL = `${BASE_URL}/${fromCurr.value.toLowerCase()}/${toCurr.value.toLowerCase()}.json`;
-    let response = await fetch(URL);
-    let data = await response.json();
-    let rate = data[toCurr.value.toLowerCase()];
-    finalAmount = amountVal * rate;
-    msg.innerText = `${amountVal} ${fromCurr.value} = ${finalAmount} ${toCurr.value}`;
+    // Show loading message
+    msg.innerText = "Loading...";
+    btn.innerText = "Loading...";
+    btn.disabled = true;
+
+    try {
+        // Try primary API first
+        let URL = `${BASE_URL}?base=${fromCurr.value}&symbols=${toCurr.value}`;
+        let response = await fetch(URL);
+        
+        if (!response.ok) {
+            // Fallback to a different API if first one fails
+            URL = `https://api.exchangerate.host/latest?base=${fromCurr.value}&symbols=${toCurr.value}`;
+            response = await fetch(URL);
+        }
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        let data = await response.json();
+        let rate = data.rates[toCurr.value];
+        
+        if (!rate) {
+            throw new Error("Exchange rate not found");
+        }
+        
+        let finalAmount = (amountVal * rate).toFixed(2);
+        msg.innerText = `${amountVal} ${fromCurr.value} = ${finalAmount} ${toCurr.value}`;
+    } catch (error) {
+        console.error("Error:", error);
+        msg.innerText = "Error: Unable to fetch exchange rates. Please check your internet connection and try again.";
+    } finally {
+        // Reset button state
+        btn.innerText = "Get Exchange Rate";
+        btn.disabled = false;
+    }
 }
